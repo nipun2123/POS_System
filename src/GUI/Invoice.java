@@ -1,0 +1,1530 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package GUI;
+
+import Databases.Beans.HoldInvoice;
+import Databases.Beans.InvoiceItem;
+import Databases.DB;
+import Databases.Table.GrnManager;
+import Databases.Table.HoldInvoiceManager;
+import Databases.Table.InvoiceManager;
+import Databases.Table.ProductManager;
+import Databases.Table.StockManager;
+import java.awt.Font;
+import java.awt.event.KeyEvent;
+import java.io.FileWriter;
+import java.io.InputStream;
+import java.sql.ResultSet;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Vector;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.DefaultComboBoxModel;
+import javax.swing.JOptionPane;
+import javax.swing.table.DefaultTableModel;
+import net.sf.jasperreports.engine.JRException;
+import net.sf.jasperreports.engine.JasperCompileManager;
+import net.sf.jasperreports.engine.JasperFillManager;
+import net.sf.jasperreports.engine.JasperPrint;
+import net.sf.jasperreports.engine.JasperPrintManager;
+import net.sf.jasperreports.engine.JasperReport;
+import net.sf.jasperreports.view.JasperViewer;
+import org.jnativehook.GlobalScreen;
+import org.jnativehook.keyboard.NativeKeyEvent;
+import org.jnativehook.keyboard.NativeKeyListener;
+
+/**
+ *
+ * @author nipun
+ */
+public class Invoice extends javax.swing.JPanel implements NativeKeyListener {
+
+    private static Invoice instance;
+
+    private double subTotalSum = 0.00;
+    private double netTotalSum = 0.00;
+
+    public static synchronized Invoice getInstance() {
+        if (instance == null) {
+            instance = new Invoice();
+        }
+        return instance;
+    }
+
+    /**
+     * Creates new form Invoice
+     */
+    public Invoice() {
+        initComponents();
+
+        invoiceTable.getTableHeader().setFont(new Font("Nirmala UI", 1, 16));
+
+        cancelInvoiceLabel.setText("<html> <p> අවලංගු<br/> කරන්න </p></html>");
+        holdLabel.setText("<html> <p> තාවකාලිකව<br/> නවතන්න </p></html>");
+        recallHoldLabel.setText("<html> <p> නැවත<br/> ලබා ගන්න </p></html>");
+        addNewItemLabel.setText("<html> <p> තව භාණ්ඩ <br/> එකතු කරන්න</p></html>");
+        doneLabel.setText("<html> <p> සම්පූර්ණ  <br/> කරන්න</p></html>");
+
+        SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy");
+        invoiceDate.setText(sdf.format(new Date()));
+
+        generateInvoiceId();
+
+        try {
+            GlobalScreen.registerNativeHook();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        GlobalScreen.addNativeKeyListener(this);
+
+    }
+
+    private static final String SELECTPRODUCTERROR
+            = "<html><p><font color=\"#000\" "
+            + "size=\"4\" face=\"Nirmala UI\">කරුණාකර භාණ්ඩයේ නම ලබා දෙන්න!"
+            + "</font></p></html>";
+    private static final String SELECTQTYERROR
+            = "<html><p><font color=\"#000\" "
+            + "size=\"4\" face=\"Nirmala UI\">කරුණාකර ප්‍රමාණය ලබා දෙන්න!"
+            + "</font></p></html>";
+
+    private static final String SELECTPRODUCTITEMERROR
+            = "<html><p><font color=\"#000\" "
+            + "size=\"4\" face=\"Nirmala UI\">කරුණාකර භාණ්ඩ ඇතුලත් කරන්න!"
+            + "</font></p></html>";
+
+    private static final String ALREADYHAVEHOLDINVOICEERROR
+            = "<html><p><font color=\"#000\" "
+            + "size=\"4\" face=\"Nirmala UI\"> ඔබ දැනටමත් ඉන්වොයිසියක් තාවකාලිකව නවතා ඇත."
+            + "</font></p></html>";
+
+    private static final String SAVEDHOLDINVOICEMSG
+            = "<html><p><font color=\"#000\" "
+            + "size=\"4\" face=\"Nirmala UI\"> ඉන්වොයිසිය තාවකාලිකව නැවතුවා."
+            + "</font></p></html>";
+
+    private static final String NOHOLDINVOICEERROR
+            = "<html><p><font color=\"#000\" "
+            + "size=\"4\" face=\"Nirmala UI\"> තාවකාලිකව නැවතූ ඉන්වොයිසි නැත!"
+            + "</font></p></html>";
+
+    private static final String PRINTORNOT
+            = "<html><p><font color=\"#000\" "
+            + "size=\"4\" face=\"Nirmala UI\"> ඔබට ඉන්වොයිසිය මුද්‍රණය කිරීමට අවශ්‍යද?"
+            + "</font></p></html>";
+
+    private static final String TRYAGAINERROR
+            = "<html><p><font color=\"#000\" "
+            + "size=\"4\" face=\"Nirmala UI\">ක්‍රියාවලිය සම්පූර්ණ නැත. නැවත උත්සාහ කරන්න."
+            + "</font></p></html>";
+
+    private static final String WRONGCHASHERROR
+            = "<html><p><font color=\"#000\" "
+            + "size=\"4\" face=\"Nirmala UI\">ලබාගත් මුදල වැරදී!"
+            + "</font></p></html>";
+
+    /**
+     * This method is called from within the constructor to initialize the form.
+     * WARNING: Do NOT modify this code. The content of this method is always
+     * regenerated by the Form Editor.
+     */
+    @SuppressWarnings("unchecked")
+    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
+    private void initComponents() {
+
+        jLabel11 = new javax.swing.JLabel();
+        invoiceDate = new javax.swing.JLabel();
+        invoiceNo = new javax.swing.JLabel();
+        jLabel12 = new javax.swing.JLabel();
+        jLabel3 = new javax.swing.JLabel();
+        productSearchTxt = new javax.swing.JTextField();
+        productLoadCombo = new javax.swing.JComboBox<>();
+        qty = new javax.swing.JTextField();
+        jLabel17 = new javax.swing.JLabel();
+        itemDiscount = new javax.swing.JTextField();
+        jLabel18 = new javax.swing.JLabel();
+        itemTotal = new javax.swing.JTextField();
+        jLabel6 = new javax.swing.JLabel();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        invoiceTable = new javax.swing.JTable();
+        jPanel1 = new javax.swing.JPanel();
+        jLabel10 = new javax.swing.JLabel();
+        discount = new javax.swing.JTextField();
+        jLabel9 = new javax.swing.JLabel();
+        change = new javax.swing.JLabel();
+        pecentage = new javax.swing.JTextField();
+        subTotal = new javax.swing.JLabel();
+        netTotal = new javax.swing.JLabel();
+        jPanel3 = new javax.swing.JPanel();
+        subTotal1 = new javax.swing.JLabel();
+        jLabel8 = new javax.swing.JLabel();
+        chash = new javax.swing.JTextField();
+        jLabel2 = new javax.swing.JLabel();
+        jLabel4 = new javax.swing.JLabel();
+        jLabel5 = new javax.swing.JLabel();
+        jPanel2 = new javax.swing.JPanel();
+        jPanel4 = new javax.swing.JPanel();
+        subTotal2 = new javax.swing.JLabel();
+        jLabel7 = new javax.swing.JLabel();
+        jPanel5 = new javax.swing.JPanel();
+        cancelInvoiceLabel = new javax.swing.JLabel();
+        jLabel13 = new javax.swing.JLabel();
+        jPanel6 = new javax.swing.JPanel();
+        holdLabel = new javax.swing.JLabel();
+        jLabel14 = new javax.swing.JLabel();
+        jPanel7 = new javax.swing.JPanel();
+        recallHoldLabel = new javax.swing.JLabel();
+        jLabel15 = new javax.swing.JLabel();
+        jPanel9 = new javax.swing.JPanel();
+        addNewItemLabel = new javax.swing.JLabel();
+        jLabel19 = new javax.swing.JLabel();
+        jPanel8 = new javax.swing.JPanel();
+        doneLabel = new javax.swing.JLabel();
+        jLabel16 = new javax.swing.JLabel();
+        jSeparator1 = new javax.swing.JSeparator();
+        sellingPrice = new javax.swing.JTextField();
+        jLabel20 = new javax.swing.JLabel();
+        jLabel21 = new javax.swing.JLabel();
+
+        setBackground(new java.awt.Color(234, 249, 244));
+        setMinimumSize(new java.awt.Dimension(1216, 708));
+        setPreferredSize(new java.awt.Dimension(1216, 708));
+        setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
+
+        jLabel11.setFont(new java.awt.Font("Nirmala UI", 0, 17)); // NOI18N
+        jLabel11.setText("දිනය");
+        add(jLabel11, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 10, 80, 30));
+
+        invoiceDate.setFont(new java.awt.Font("Nirmala UI", 1, 17)); // NOI18N
+        invoiceDate.setText("5/1/2020");
+        add(invoiceDate, new org.netbeans.lib.awtextra.AbsoluteConstraints(100, 10, 130, 30));
+
+        invoiceNo.setFont(new java.awt.Font("Nirmala UI", 1, 17)); // NOI18N
+        invoiceNo.setText("12");
+        add(invoiceNo, new org.netbeans.lib.awtextra.AbsoluteConstraints(440, 10, 170, 30));
+
+        jLabel12.setFont(new java.awt.Font("Nirmala UI", 0, 17)); // NOI18N
+        jLabel12.setText("ඉන්වොයිසි අංකය");
+        add(jLabel12, new org.netbeans.lib.awtextra.AbsoluteConstraints(260, 10, 160, 30));
+
+        jLabel3.setFont(new java.awt.Font("Nirmala UI", 0, 17)); // NOI18N
+        jLabel3.setText("භාණ්ඩයේ නම හෝ තීරු කේතය(Bar code),කේතය");
+        add(jLabel3, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 70, 450, 30));
+
+        productSearchTxt.setFont(new java.awt.Font("Nirmala UI", 0, 17)); // NOI18N
+        productSearchTxt.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                productSearchTxtActionPerformed(evt);
+            }
+        });
+        productSearchTxt.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                productSearchTxtKeyReleased(evt);
+            }
+            public void keyTyped(java.awt.event.KeyEvent evt) {
+                productSearchTxtKeyTyped(evt);
+            }
+        });
+        add(productSearchTxt, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 100, 460, 30));
+
+        productLoadCombo.setFont(new java.awt.Font("Nirmala UI", 0, 17)); // NOI18N
+        productLoadCombo.setOpaque(false);
+        add(productLoadCombo, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 100, 460, 30));
+
+        qty.setFont(new java.awt.Font("Tahoma", 0, 17)); // NOI18N
+        qty.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                qtyFocusLost(evt);
+            }
+        });
+        qty.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                qtyKeyReleased(evt);
+            }
+            public void keyTyped(java.awt.event.KeyEvent evt) {
+                qtyKeyTyped(evt);
+            }
+        });
+        add(qty, new org.netbeans.lib.awtextra.AbsoluteConstraints(565, 100, 70, 30));
+
+        jLabel17.setFont(new java.awt.Font("Nirmala UI", 0, 17)); // NOI18N
+        jLabel17.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel17.setText("ප්‍රමාණය");
+        add(jLabel17, new org.netbeans.lib.awtextra.AbsoluteConstraints(555, 70, 90, 30));
+
+        itemDiscount.setFont(new java.awt.Font("Tahoma", 0, 17)); // NOI18N
+        itemDiscount.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                itemDiscountFocusLost(evt);
+            }
+        });
+        itemDiscount.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                itemDiscountActionPerformed(evt);
+            }
+        });
+        itemDiscount.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                itemDiscountKeyReleased(evt);
+            }
+            public void keyTyped(java.awt.event.KeyEvent evt) {
+                itemDiscountKeyTyped(evt);
+            }
+        });
+        add(itemDiscount, new org.netbeans.lib.awtextra.AbsoluteConstraints(640, 100, 70, 30));
+
+        jLabel18.setFont(new java.awt.Font("Nirmala UI", 0, 17)); // NOI18N
+        jLabel18.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel18.setIcon(new javax.swing.ImageIcon(getClass().getResource("/Icons/clear.png"))); // NOI18N
+        jLabel18.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                jLabel18MouseClicked(evt);
+            }
+        });
+        add(jLabel18, new org.netbeans.lib.awtextra.AbsoluteConstraints(730, 40, 70, 40));
+
+        itemTotal.setFont(new java.awt.Font("Tahoma", 0, 17)); // NOI18N
+        itemTotal.setEnabled(false);
+        itemTotal.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                itemTotalFocusLost(evt);
+            }
+        });
+        itemTotal.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                itemTotalActionPerformed(evt);
+            }
+        });
+        itemTotal.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                itemTotalKeyReleased(evt);
+            }
+            public void keyTyped(java.awt.event.KeyEvent evt) {
+                itemTotalKeyTyped(evt);
+            }
+        });
+        add(itemTotal, new org.netbeans.lib.awtextra.AbsoluteConstraints(715, 100, 90, 30));
+
+        jLabel6.setFont(new java.awt.Font("Nirmala UI", 0, 17)); // NOI18N
+        jLabel6.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel6.setText(" මුළු මුදල");
+        add(jLabel6, new org.netbeans.lib.awtextra.AbsoluteConstraints(715, 70, 90, 30));
+
+        invoiceTable.setFont(new java.awt.Font("Nirmala UI", 0, 18)); // NOI18N
+        invoiceTable.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+
+            },
+            new String [] {
+                "භාණ්ඩයේ නම", "ඒකක මිල", "ප්‍රමාණය", "වට්ටම", " මුළු මුදල"
+            }
+        ) {
+            boolean[] canEdit = new boolean [] {
+                false, false, false, false, false
+            };
+
+            public boolean isCellEditable(int rowIndex, int columnIndex) {
+                return canEdit [columnIndex];
+            }
+        });
+        invoiceTable.setRowHeight(25);
+        invoiceTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                invoiceTableMouseClicked(evt);
+            }
+        });
+        jScrollPane1.setViewportView(invoiceTable);
+        if (invoiceTable.getColumnModel().getColumnCount() > 0) {
+            invoiceTable.getColumnModel().getColumn(0).setPreferredWidth(280);
+            invoiceTable.getColumnModel().getColumn(2).setPreferredWidth(60);
+            invoiceTable.getColumnModel().getColumn(4).setPreferredWidth(100);
+        }
+
+        add(jScrollPane1, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 150, 790, 520));
+
+        jPanel1.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(102, 255, 102)));
+        jPanel1.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
+
+        jLabel10.setFont(new java.awt.Font("Nirmala UI", 0, 18)); // NOI18N
+        jLabel10.setText(" ප්‍රතිශතය");
+        jPanel1.add(jLabel10, new org.netbeans.lib.awtextra.AbsoluteConstraints(180, 40, -1, 35));
+
+        discount.setFont(new java.awt.Font("Tahoma", 0, 17)); // NOI18N
+        discount.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                discountKeyReleased(evt);
+            }
+            public void keyTyped(java.awt.event.KeyEvent evt) {
+                discountKeyTyped(evt);
+            }
+        });
+        jPanel1.add(discount, new org.netbeans.lib.awtextra.AbsoluteConstraints(70, 40, 80, 35));
+
+        jLabel9.setFont(new java.awt.Font("Nirmala UI", 0, 18)); // NOI18N
+        jLabel9.setText("%");
+        jPanel1.add(jLabel9, new org.netbeans.lib.awtextra.AbsoluteConstraints(360, 40, 20, 35));
+
+        change.setFont(new java.awt.Font("Nirmala UI", 0, 22)); // NOI18N
+        change.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        change.setText("රු 0.0");
+        jPanel1.add(change, new org.netbeans.lib.awtextra.AbsoluteConstraints(190, 270, 190, 40));
+
+        pecentage.setFont(new java.awt.Font("Tahoma", 0, 17)); // NOI18N
+        pecentage.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                pecentageKeyReleased(evt);
+            }
+            public void keyTyped(java.awt.event.KeyEvent evt) {
+                pecentageKeyTyped(evt);
+            }
+        });
+        jPanel1.add(pecentage, new org.netbeans.lib.awtextra.AbsoluteConstraints(290, 40, 70, 35));
+
+        subTotal.setFont(new java.awt.Font("Nirmala UI", 0, 22)); // NOI18N
+        subTotal.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        subTotal.setText("රු 0.0");
+        jPanel1.add(subTotal, new org.netbeans.lib.awtextra.AbsoluteConstraints(160, 0, 240, 30));
+
+        netTotal.setFont(new java.awt.Font("Nirmala UI", 0, 29)); // NOI18N
+        netTotal.setForeground(new java.awt.Color(255, 51, 51));
+        netTotal.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+        netTotal.setText("අවසන් එකතුව= රු 0.0");
+        jPanel1.add(netTotal, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 80, 390, 70));
+
+        jPanel3.setBackground(new java.awt.Color(79, 195, 109));
+        jPanel3.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(102, 255, 102)));
+        jPanel3.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                jPanel3MouseClicked(evt);
+            }
+        });
+
+        subTotal1.setFont(new java.awt.Font("Nirmala UI", 0, 22)); // NOI18N
+        subTotal1.setText(" ගෙවන්න");
+
+        javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
+        jPanel3.setLayout(jPanel3Layout);
+        jPanel3Layout.setHorizontalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 318, Short.MAX_VALUE)
+            .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(jPanel3Layout.createSequentialGroup()
+                    .addGap(0, 0, Short.MAX_VALUE)
+                    .addComponent(subTotal1)
+                    .addGap(0, 0, Short.MAX_VALUE)))
+        );
+        jPanel3Layout.setVerticalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 58, Short.MAX_VALUE)
+            .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addGroup(jPanel3Layout.createSequentialGroup()
+                    .addGap(0, 0, Short.MAX_VALUE)
+                    .addComponent(subTotal1)
+                    .addGap(0, 0, Short.MAX_VALUE)))
+        );
+
+        jPanel1.add(jPanel3, new org.netbeans.lib.awtextra.AbsoluteConstraints(40, 200, 320, 60));
+
+        jLabel8.setFont(new java.awt.Font("Nirmala UI", 0, 18)); // NOI18N
+        jLabel8.setText("වට්ටම");
+        jPanel1.add(jLabel8, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 40, -1, 35));
+
+        chash.setFont(new java.awt.Font("Nirmala UI", 0, 22)); // NOI18N
+        chash.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                chashKeyReleased(evt);
+            }
+            public void keyTyped(java.awt.event.KeyEvent evt) {
+                chashKeyTyped(evt);
+            }
+        });
+        jPanel1.add(chash, new org.netbeans.lib.awtextra.AbsoluteConstraints(140, 150, 240, 40));
+
+        jLabel2.setFont(new java.awt.Font("Nirmala UI", 0, 22)); // NOI18N
+        jLabel2.setText("මුළු එකතුව = ");
+        jPanel1.add(jLabel2, new org.netbeans.lib.awtextra.AbsoluteConstraints(10, 0, -1, -1));
+
+        jLabel4.setFont(new java.awt.Font("Nirmala UI", 0, 22)); // NOI18N
+        jLabel4.setText("දුන් මුදල =");
+        jPanel1.add(jLabel4, new org.netbeans.lib.awtextra.AbsoluteConstraints(11, 150, 120, 40));
+
+        jLabel5.setFont(new java.awt.Font("Nirmala UI", 0, 22)); // NOI18N
+        jLabel5.setText("ඉතුරු මුදල = ");
+        jPanel1.add(jLabel5, new org.netbeans.lib.awtextra.AbsoluteConstraints(40, 270, -1, 40));
+
+        add(jPanel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(810, 370, 400, 330));
+
+        jPanel2.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(102, 255, 102)));
+        jPanel2.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
+
+        jPanel4.setBackground(new java.awt.Color(153, 255, 204));
+        jPanel4.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                jPanel4MouseClicked(evt);
+            }
+        });
+
+        subTotal2.setFont(new java.awt.Font("Nirmala UI", 0, 16)); // NOI18N
+        subTotal2.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        subTotal2.setText("මකන්න");
+
+        jLabel7.setFont(new java.awt.Font("Nirmala UI", 1, 17)); // NOI18N
+        jLabel7.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel7.setText("BACKSPACE");
+
+        javax.swing.GroupLayout jPanel4Layout = new javax.swing.GroupLayout(jPanel4);
+        jPanel4.setLayout(jPanel4Layout);
+        jPanel4Layout.setHorizontalGroup(
+            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jLabel7, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(subTotal2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 120, Short.MAX_VALUE)
+        );
+        jPanel4Layout.setVerticalGroup(
+            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel4Layout.createSequentialGroup()
+                .addGap(12, 12, 12)
+                .addComponent(subTotal2)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabel7)
+                .addContainerGap(26, Short.MAX_VALUE))
+        );
+
+        jPanel2.add(jPanel4, new org.netbeans.lib.awtextra.AbsoluteConstraints(50, 110, 120, 90));
+
+        jPanel5.setBackground(new java.awt.Color(153, 255, 204));
+        jPanel5.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                jPanel5MouseClicked(evt);
+            }
+        });
+
+        cancelInvoiceLabel.setFont(new java.awt.Font("Nirmala UI", 0, 16)); // NOI18N
+        cancelInvoiceLabel.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        cancelInvoiceLabel.setText(" අවලංගු කරන්න");
+
+        jLabel13.setFont(new java.awt.Font("Nirmala UI", 1, 17)); // NOI18N
+        jLabel13.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel13.setText("ctrl+v");
+
+        javax.swing.GroupLayout jPanel5Layout = new javax.swing.GroupLayout(jPanel5);
+        jPanel5.setLayout(jPanel5Layout);
+        jPanel5Layout.setHorizontalGroup(
+            jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jLabel13, javax.swing.GroupLayout.DEFAULT_SIZE, 120, Short.MAX_VALUE)
+            .addComponent(cancelInvoiceLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+        );
+        jPanel5Layout.setVerticalGroup(
+            jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel5Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(cancelInvoiceLabel)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabel13)
+                .addContainerGap(27, Short.MAX_VALUE))
+        );
+
+        jPanel2.add(jPanel5, new org.netbeans.lib.awtextra.AbsoluteConstraints(200, 110, 120, 90));
+
+        jPanel6.setBackground(new java.awt.Color(153, 255, 204));
+        jPanel6.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                jPanel6MouseClicked(evt);
+            }
+        });
+
+        holdLabel.setFont(new java.awt.Font("Nirmala UI", 0, 16)); // NOI18N
+        holdLabel.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        holdLabel.setText("තාවකාලිකව නවතන්න");
+
+        jLabel14.setFont(new java.awt.Font("Nirmala UI", 1, 17)); // NOI18N
+        jLabel14.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel14.setText("ctrl+h");
+
+        javax.swing.GroupLayout jPanel6Layout = new javax.swing.GroupLayout(jPanel6);
+        jPanel6.setLayout(jPanel6Layout);
+        jPanel6Layout.setHorizontalGroup(
+            jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jLabel14, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 120, Short.MAX_VALUE)
+            .addComponent(holdLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+        );
+        jPanel6Layout.setVerticalGroup(
+            jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel6Layout.createSequentialGroup()
+                .addContainerGap(26, Short.MAX_VALUE)
+                .addComponent(holdLabel)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabel14)
+                .addGap(12, 12, 12))
+        );
+
+        jPanel2.add(jPanel6, new org.netbeans.lib.awtextra.AbsoluteConstraints(50, 210, 120, 90));
+
+        jPanel7.setBackground(new java.awt.Color(153, 255, 204));
+        jPanel7.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                jPanel7MouseClicked(evt);
+            }
+        });
+
+        recallHoldLabel.setFont(new java.awt.Font("Nirmala UI", 0, 16)); // NOI18N
+        recallHoldLabel.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        recallHoldLabel.setText("නැවත ලබා ගන්න");
+
+        jLabel15.setFont(new java.awt.Font("Nirmala UI", 1, 17)); // NOI18N
+        jLabel15.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel15.setText("ctrl+h");
+
+        javax.swing.GroupLayout jPanel7Layout = new javax.swing.GroupLayout(jPanel7);
+        jPanel7.setLayout(jPanel7Layout);
+        jPanel7Layout.setHorizontalGroup(
+            jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jLabel15, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 120, Short.MAX_VALUE)
+            .addComponent(recallHoldLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+        );
+        jPanel7Layout.setVerticalGroup(
+            jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel7Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(recallHoldLabel)
+                .addGap(5, 5, 5)
+                .addComponent(jLabel15)
+                .addContainerGap(28, Short.MAX_VALUE))
+        );
+
+        jPanel2.add(jPanel7, new org.netbeans.lib.awtextra.AbsoluteConstraints(200, 210, 120, 90));
+
+        jPanel9.setBackground(new java.awt.Color(153, 255, 204));
+        jPanel9.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                jPanel9MouseClicked(evt);
+            }
+        });
+
+        addNewItemLabel.setFont(new java.awt.Font("Nirmala UI", 0, 16)); // NOI18N
+        addNewItemLabel.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        addNewItemLabel.setText("තව භාණ්ඩ එකතු කරන්න");
+
+        jLabel19.setFont(new java.awt.Font("Nirmala UI", 1, 17)); // NOI18N
+        jLabel19.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel19.setText("-");
+
+        javax.swing.GroupLayout jPanel9Layout = new javax.swing.GroupLayout(jPanel9);
+        jPanel9.setLayout(jPanel9Layout);
+        jPanel9Layout.setHorizontalGroup(
+            jPanel9Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(addNewItemLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+            .addComponent(jLabel19, javax.swing.GroupLayout.DEFAULT_SIZE, 120, Short.MAX_VALUE)
+        );
+        jPanel9Layout.setVerticalGroup(
+            jPanel9Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel9Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(addNewItemLabel)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabel19)
+                .addContainerGap(27, Short.MAX_VALUE))
+        );
+
+        jPanel2.add(jPanel9, new org.netbeans.lib.awtextra.AbsoluteConstraints(200, 10, 120, 90));
+
+        jPanel8.setBackground(new java.awt.Color(153, 255, 204));
+        jPanel8.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                jPanel8MouseClicked(evt);
+            }
+        });
+
+        doneLabel.setFont(new java.awt.Font("Nirmala UI", 0, 16)); // NOI18N
+        doneLabel.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        doneLabel.setText("සම්පූර්ණ කරන්න");
+
+        jLabel16.setFont(new java.awt.Font("Nirmala UI", 1, 17)); // NOI18N
+        jLabel16.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel16.setText("+");
+
+        javax.swing.GroupLayout jPanel8Layout = new javax.swing.GroupLayout(jPanel8);
+        jPanel8.setLayout(jPanel8Layout);
+        jPanel8Layout.setHorizontalGroup(
+            jPanel8Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(jLabel16, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(doneLabel, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+        );
+        jPanel8Layout.setVerticalGroup(
+            jPanel8Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel8Layout.createSequentialGroup()
+                .addGap(12, 12, 12)
+                .addComponent(doneLabel)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabel16)
+                .addContainerGap(26, Short.MAX_VALUE))
+        );
+
+        jPanel2.add(jPanel8, new org.netbeans.lib.awtextra.AbsoluteConstraints(50, 10, 120, 90));
+
+        add(jPanel2, new org.netbeans.lib.awtextra.AbsoluteConstraints(810, 50, 400, 310));
+        add(jSeparator1, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 40, 1220, 10));
+
+        sellingPrice.setFont(new java.awt.Font("Tahoma", 0, 17)); // NOI18N
+        sellingPrice.setEnabled(false);
+        sellingPrice.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                sellingPriceFocusLost(evt);
+            }
+        });
+        sellingPrice.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                sellingPriceKeyReleased(evt);
+            }
+            public void keyTyped(java.awt.event.KeyEvent evt) {
+                sellingPriceKeyTyped(evt);
+            }
+        });
+        add(sellingPrice, new org.netbeans.lib.awtextra.AbsoluteConstraints(480, 100, 80, 30));
+
+        jLabel20.setFont(new java.awt.Font("Nirmala UI", 0, 17)); // NOI18N
+        jLabel20.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel20.setText("මුදල");
+        add(jLabel20, new org.netbeans.lib.awtextra.AbsoluteConstraints(480, 70, 80, 30));
+
+        jLabel21.setFont(new java.awt.Font("Nirmala UI", 0, 17)); // NOI18N
+        jLabel21.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel21.setText("වට්ටම");
+        add(jLabel21, new org.netbeans.lib.awtextra.AbsoluteConstraints(640, 70, 70, 30));
+    }// </editor-fold>//GEN-END:initComponents
+
+    private void productSearchTxtActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_productSearchTxtActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_productSearchTxtActionPerformed
+
+    int i = 0;
+    private void productSearchTxtKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_productSearchTxtKeyReleased
+        if (productSearchTxt.getText().isEmpty()) {
+            productLoadCombo.hidePopup();
+            productLoadCombo.removeAllItems();
+            productSearchTxt.setText(null);
+        } else {
+            try {
+                Vector v = new Vector();
+                ResultSet rs_nic = ProductManager.getAllLikeNameBarcodeCodeMoreQty(productSearchTxt.getText().trim());
+                while (rs_nic.next()) {
+                    if (!rs_nic.getString("selling_price").equals("0")) {
+                        if (rs_nic.getString("status").equals("yes")) {
+
+                            String expTxt = rs_nic.getString("exp");
+
+                            if (!expTxt.equals("null")) {
+
+                                SimpleDateFormat sdf = new SimpleDateFormat("MMM d, yyyy");
+                                Date expDate = sdf.parse(expTxt);
+
+                                Calendar c = Calendar.getInstance();
+
+                                c.set(Calendar.HOUR_OF_DAY, 0);
+                                c.set(Calendar.MINUTE, 0);
+                                c.set(Calendar.SECOND, 0);
+                                c.set(Calendar.MILLISECOND, 0);
+
+                                Date today = c.getTime();
+
+                                if (expDate.after(new Date()) || expDate.equals(today)) {
+                                    v.add(rs_nic.getString("code") + " - " + rs_nic.getString("barcode") + " - " + rs_nic.getString("product_name") + " - " + rs_nic.getString("weight") + " - රු." + rs_nic.getString("selling_price"));
+                                }
+
+                            } else {
+                                v.add(rs_nic.getString("code") + " - " + rs_nic.getString("barcode") + " - " + rs_nic.getString("product_name") + " - " + rs_nic.getString("weight") + " - රු." + rs_nic.getString("selling_price"));
+                            }
+                        }
+                    }
+                }
+                DefaultComboBoxModel dcb = new DefaultComboBoxModel(v);
+                productLoadCombo.setModel(dcb);
+
+                if (productLoadCombo.getItemCount() != 0) {
+                    productLoadCombo.showPopup();
+
+                    int c = productLoadCombo.getItemCount();
+                    if (evt.getKeyCode() == 40) {
+                        i++;
+                        if (i == c) {
+                            i = 0;
+                        }
+                        productLoadCombo.setSelectedIndex(i);
+                    }
+
+                    if (evt.getKeyCode() == 38) {
+                        i--;
+                        if (i == -1) {
+                            i = c - 1;
+                        }
+                        productLoadCombo.setSelectedIndex(i);
+                    }
+
+                    if (evt.getKeyChar() == KeyEvent.VK_ENTER) {
+                        productLoadCombo.setSelectedIndex(i);
+                        productLoadCombo.hidePopup();
+                        i = 0;
+                        productSearchTxt.setText(productLoadCombo.getSelectedItem().toString());
+
+//                        ResultSet result = StockManager.getAllStockFromNameWeightMoreQty(productSearchTxt.getText().split(" - ")[2].trim(), productSearchTxt.getText().split(" - ")[3].trim());
+//
+//                        while (result.next()) {
+//                            if (result.getString("status").equals("yes")) {
+//
+//                                String expTxt = result.getString("exp");
+//
+//                                if (!expTxt.equals("null")) {
+//
+//                                    SimpleDateFormat sdf = new SimpleDateFormat("MMM d, yyyy");
+//                                    Date expDate = sdf.parse(expTxt);
+//
+//                                    Calendar c1 = Calendar.getInstance();
+//
+//                                    c1.set(Calendar.HOUR_OF_DAY, 0);
+//                                    c1.set(Calendar.MINUTE, 0);
+//                                    c1.set(Calendar.SECOND, 0);
+//                                    c1.set(Calendar.MILLISECOND, 0);
+//
+//                                    Date today = c1.getTime();
+//
+//                                    if (expDate.after(new Date()) || expDate.equals(today)) {
+//
+//                                        sellingPrice.setText(result.getString("selling_price"));
+//                                        break;
+//
+//                                    }
+//
+//                                } else {
+//                                    sellingPrice.setText(result.getString("selling_price"));
+//                                    break;
+//                                }
+//                            }
+//                        }
+                        sellingPrice.setText(productSearchTxt.getText().split(" - රු.")[1].trim());
+                        qty.setText("1");
+                        qty.selectAll();
+                        qty.grabFocus();
+                    }
+                }
+
+            } catch (Exception e) {
+                DB.processException(e);
+            }
+        }
+    }//GEN-LAST:event_productSearchTxtKeyReleased
+
+    private void productSearchTxtKeyTyped(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_productSearchTxtKeyTyped
+        if (evt.getKeyChar() == '+' || evt.getKeyChar() == '-') {
+            evt.consume();
+        }
+    }//GEN-LAST:event_productSearchTxtKeyTyped
+
+    private double itemTotalSum = 0.0;
+
+    private void qtyKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_qtyKeyReleased
+        if (!qty.getText().isEmpty()) {
+            if (evt.getKeyChar() == KeyEvent.VK_ENTER) {
+                itemDiscount.grabFocus();
+            }
+        }
+    }//GEN-LAST:event_qtyKeyReleased
+
+    private void qtyKeyTyped(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_qtyKeyTyped
+
+        if (!Character.isDigit(evt.getKeyChar()) && evt.getKeyChar() != '.') {
+            evt.consume();
+        }
+        if (qty.getText().isEmpty() && evt.getKeyChar() == '.') {
+            evt.consume();
+        }
+        if (qty.getText().contains(".") && evt.getKeyChar() == '.') {
+            evt.consume();
+        }
+    }//GEN-LAST:event_qtyKeyTyped
+    boolean isRowExits = false;
+    boolean isClick = false;
+
+    private void itemDiscountKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_itemDiscountKeyReleased
+
+        if (itemTotalSum != 0.0) {
+
+            if (!itemDiscount.getText().isEmpty()) {
+
+                itemTotal.setText(String.valueOf(itemTotalSum - Double.parseDouble(itemDiscount.getText())));
+
+            } else {
+                itemTotal.setText(String.valueOf(itemTotalSum));
+            }
+        }
+
+        if (evt.getKeyChar() == KeyEvent.VK_ENTER) {
+
+            if (productLoadCombo.getSelectedItem() != null) {
+                if (!qty.getText().isEmpty()) {
+
+                    if (itemDiscount.getText().isEmpty()) {
+                        itemDiscount.setText("0.0");
+                    }
+
+                    isRowExits = false;
+
+                    DefaultTableModel dtm = (DefaultTableModel) invoiceTable.getModel();
+
+                    String product = (String) productLoadCombo.getSelectedItem();
+
+                    for (int j = 0; j < dtm.getRowCount(); j++) {
+
+                        if (dtm.getValueAt(j, 0).equals(product.split(" - ")[2].trim() + "-" + product.split(" - ")[3].trim()) && dtm.getValueAt(j, 1).equals(Double.parseDouble(sellingPrice.getText()))) {
+
+                            isRowExits = true;
+
+                            double pastSellingPrice = (double) dtm.getValueAt(j, 1);
+                            double pastQty = (double) dtm.getValueAt(j, 2);
+                            double pastDiscount = (double) dtm.getValueAt(j, 3);
+
+                            double totalQty = pastQty + Double.parseDouble(qty.getText());
+                            double totalDiscount;
+
+                            if (!itemDiscount.getText().isEmpty()) {
+                                totalDiscount = pastDiscount + Double.parseDouble(itemDiscount.getText());
+                                subTotalSum += (pastSellingPrice * Double.parseDouble(qty.getText())) - Double.parseDouble(itemDiscount.getText());
+                            } else {
+                                totalDiscount = pastDiscount;
+                                subTotalSum += pastSellingPrice * Double.parseDouble(qty.getText());
+                            }
+
+                            dtm.setValueAt(totalQty, j, 2);
+                            dtm.setValueAt(totalDiscount, j, 3);
+                            dtm.setValueAt((pastSellingPrice * totalQty) - totalDiscount, j, 4);
+
+                            subTotal.setText("රු " + subTotalSum);
+                            netTotal.setText("අවසන් එකතුව= රු" + subTotalSum);
+
+                            clearItemTextField();
+                            break;
+                        }
+
+                    }
+                    if (!isRowExits) {
+                        Vector v = new Vector();
+                        v.add(product.split(" - ")[2].trim() + "-" + product.split(" - ")[3].trim());
+                        v.add(Double.parseDouble(sellingPrice.getText()));
+                        v.add(Double.parseDouble(qty.getText()));
+                        if (!itemDiscount.getText().isEmpty()) {
+
+                            v.add(Double.parseDouble(itemDiscount.getText()));
+                        } else {
+                            v.add(0.0);
+                        }
+                        v.add(Double.parseDouble(itemTotal.getText()));
+                        dtm.addRow(v);
+
+                        subTotalSum += Double.parseDouble(itemTotal.getText());
+
+                        subTotal.setText("රු " + subTotalSum);
+                        netTotal.setText("අවසන් එකතුව= රු" + subTotalSum);
+
+                        clearItemTextField();
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(this, SELECTQTYERROR, "වැරදි", JOptionPane.ERROR_MESSAGE);
+                    qty.grabFocus();
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, SELECTPRODUCTERROR, "වැරදි", JOptionPane.ERROR_MESSAGE);
+                productSearchTxt.grabFocus();
+            }
+        }
+
+    }//GEN-LAST:event_itemDiscountKeyReleased
+
+    private void itemDiscountKeyTyped(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_itemDiscountKeyTyped
+        if (!Character.isDigit(evt.getKeyChar()) && evt.getKeyChar() != '.') {
+            evt.consume();
+        }
+        if (itemDiscount.getText().isEmpty() && evt.getKeyChar() == '.') {
+            evt.consume();
+        }
+        if (itemDiscount.getText().contains(".") && evt.getKeyChar() == '.') {
+            evt.consume();
+        }
+    }//GEN-LAST:event_itemDiscountKeyTyped
+
+    private void itemTotalFocusLost(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_itemTotalFocusLost
+        // TODO add your handling code here:
+    }//GEN-LAST:event_itemTotalFocusLost
+
+    private void itemTotalKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_itemTotalKeyReleased
+        // TODO add your handling code here:
+    }//GEN-LAST:event_itemTotalKeyReleased
+
+    private void itemTotalKeyTyped(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_itemTotalKeyTyped
+        // TODO add your handling code here:
+    }//GEN-LAST:event_itemTotalKeyTyped
+
+    private void discountKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_discountKeyReleased
+
+        if (subTotalSum != 0.0) {
+
+            if (!discount.getText().isEmpty()) {
+                pecentage.setText(null);
+                netTotalSum = subTotalSum - Double.parseDouble(discount.getText());
+                netTotal.setText("අවසන් එකතුව= රු" + netTotalSum);
+                pecentage.setText(String.valueOf(Math.round((Double.parseDouble(discount.getText()) * 100.0 / subTotalSum) * 100.0) / 100.0));
+            } else {
+                netTotal.setText("අවසන් එකතුව= රු" + subTotalSum);
+                pecentage.setText(null);
+            }
+
+        } else {
+            JOptionPane.showMessageDialog(this, SELECTPRODUCTITEMERROR, "වැරදි", JOptionPane.ERROR_MESSAGE);
+            productSearchTxt.grabFocus();
+        }
+
+        if (evt.getKeyCode() == 39) {
+            pecentage.grabFocus();
+        }
+        
+                if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+           chash.grabFocus();
+        }
+    }//GEN-LAST:event_discountKeyReleased
+
+    private void discountKeyTyped(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_discountKeyTyped
+        if (!Character.isDigit(evt.getKeyChar()) && evt.getKeyChar() != '.') {
+            evt.consume();
+        }
+        if (discount.getText().isEmpty() && evt.getKeyChar() == '.') {
+            evt.consume();
+        }
+        if (discount.getText().contains(".") && evt.getKeyChar() == '.') {
+            evt.consume();
+        }
+    }//GEN-LAST:event_discountKeyTyped
+
+    private void pecentageKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_pecentageKeyReleased
+
+        if (subTotalSum != 0.0) {
+
+            if (!pecentage.getText().isEmpty()) {
+                discount.setText(null);
+                netTotalSum = ((100 - Double.parseDouble(pecentage.getText())) * subTotalSum) / 100;
+                netTotal.setText("අවසන් එකතුව= රු" + netTotalSum);
+                discount.setText(String.valueOf(subTotalSum - netTotalSum));
+            } else {
+                netTotal.setText("අවසන් එකතුව= රු" + subTotalSum);
+                discount.setText(null);
+            }
+
+        } else {
+            JOptionPane.showMessageDialog(this, SELECTPRODUCTITEMERROR, "වැරදි", JOptionPane.ERROR_MESSAGE);
+            productSearchTxt.grabFocus();
+        }
+
+        if (evt.getKeyCode() == 37) {
+            discount.grabFocus();
+        }
+    }//GEN-LAST:event_pecentageKeyReleased
+
+    private void pecentageKeyTyped(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_pecentageKeyTyped
+        if (!Character.isDigit(evt.getKeyChar()) && evt.getKeyChar() != '.') {
+            evt.consume();
+        }
+        if (pecentage.getText().isEmpty() && evt.getKeyChar() == '.') {
+            evt.consume();
+        }
+        if (pecentage.getText().contains(".") && evt.getKeyChar() == '.') {
+            evt.consume();
+        }
+    }//GEN-LAST:event_pecentageKeyTyped
+
+    private void itemDiscountActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_itemDiscountActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_itemDiscountActionPerformed
+
+    private void sellingPriceFocusLost(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_sellingPriceFocusLost
+        // TODO add your handling code here:
+    }//GEN-LAST:event_sellingPriceFocusLost
+
+    private void sellingPriceKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_sellingPriceKeyReleased
+        // TODO add your handling code here:
+    }//GEN-LAST:event_sellingPriceKeyReleased
+
+    private void sellingPriceKeyTyped(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_sellingPriceKeyTyped
+        // TODO add your handling code here:
+    }//GEN-LAST:event_sellingPriceKeyTyped
+
+    private void qtyFocusLost(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_qtyFocusLost
+        if (qty.getText().isEmpty()) {
+            qty.setText("1");
+        }
+        if (!sellingPrice.getText().isEmpty()) {
+            itemTotalSum = Double.parseDouble(sellingPrice.getText()) * Double.parseDouble(qty.getText());
+            itemTotal.setText(String.valueOf(itemTotalSum));
+        }
+
+    }//GEN-LAST:event_qtyFocusLost
+
+    private void itemTotalActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_itemTotalActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_itemTotalActionPerformed
+
+    private void invoiceTableMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_invoiceTableMouseClicked
+        if (evt.getClickCount() == 2) {
+
+            int selectRow = invoiceTable.getSelectedRow();
+
+            String productTxt = (String) invoiceTable.getValueAt(selectRow, 0);
+            String priceTxt = String.valueOf(invoiceTable.getValueAt(selectRow, 1));
+            ResultSet result = ProductManager.getAllFromNameWeightPrice(productTxt.split("-")[0].trim(), productTxt.split("-")[1].trim(), priceTxt);
+            try {
+                Vector v = new Vector();
+//                if (rs_nic.next()) {
+//                    v.add(rs_nic.getString("code") + " - " + rs_nic.getString("barcode") + " - " + rs_nic.getString("product_name") + " - " + rs_nic.getString("weight") + " - රු." + rs_nic.getString("selling_price"));
+//                    productSearchTxt.setText(rs_nic.getString("code") + " - " + rs_nic.getString("barcode") + " - " + rs_nic.getString("product_name") + " - " + rs_nic.getString("weight") + " - රු." + rs_nic.getString("selling_price"));
+//                }
+
+                while (result.next()) {
+                    if (!result.getString("selling_price").equals("0")) {
+                        if (result.getString("status").equals("yes")) {
+
+                            String expTxt = result.getString("exp");
+
+                            if (!expTxt.equals("null")) {
+
+                                SimpleDateFormat sdf = new SimpleDateFormat("MMM d, yyyy");
+                                Date expDate = sdf.parse(expTxt);
+
+                                Calendar c = Calendar.getInstance();
+
+                                c.set(Calendar.HOUR_OF_DAY, 0);
+                                c.set(Calendar.MINUTE, 0);
+                                c.set(Calendar.SECOND, 0);
+                                c.set(Calendar.MILLISECOND, 0);
+
+                                Date today = c.getTime();
+
+                                if (expDate.after(new Date()) || expDate.equals(today)) {
+                                    v.add(result.getString("code") + " - " + result.getString("barcode") + " - " + result.getString("product_name") + " - " + result.getString("weight") + " - රු." + result.getString("selling_price"));
+                                    productSearchTxt.setText(result.getString("code") + " - " + result.getString("barcode") + " - " + result.getString("product_name") + " - " + result.getString("weight") + " - රු." + result.getString("selling_price"));
+                                    break;
+                                }
+
+                            } else {
+                                v.add(result.getString("code") + " - " + result.getString("barcode") + " - " + result.getString("product_name") + " - " + result.getString("weight") + " - රු." + result.getString("selling_price"));
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                DefaultComboBoxModel dcb = new DefaultComboBoxModel(v);
+                productLoadCombo.setModel(dcb);
+
+                sellingPrice.setText(priceTxt);
+                String qtyTxt = String.valueOf(invoiceTable.getValueAt(selectRow, 2));
+                qty.setText(qtyTxt);
+                itemDiscount.setText(String.valueOf(invoiceTable.getValueAt(selectRow, 3)));
+                itemTotal.setText(String.valueOf(invoiceTable.getValueAt(selectRow, 4)));
+
+                itemTotalSum = Double.parseDouble(priceTxt) * Double.parseDouble(qtyTxt);
+
+                itemDiscount.grabFocus();
+
+                deleteSelectedRow();
+            } catch (Exception ex) {
+//                DB.processException(ex);
+                System.out.println(ex);
+            }
+        }
+    }//GEN-LAST:event_invoiceTableMouseClicked
+
+    private void jPanel4MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jPanel4MouseClicked
+        deleteSelectedRow();
+    }//GEN-LAST:event_jPanel4MouseClicked
+
+    private void itemDiscountFocusLost(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_itemDiscountFocusLost
+
+    }//GEN-LAST:event_itemDiscountFocusLost
+
+    private void jPanel5MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jPanel5MouseClicked
+        cancelInvoice();
+    }//GEN-LAST:event_jPanel5MouseClicked
+
+    private void jPanel8MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jPanel8MouseClicked
+        clickPlus();
+    }//GEN-LAST:event_jPanel8MouseClicked
+
+    private void jPanel9MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jPanel9MouseClicked
+        clickMinus();
+    }//GEN-LAST:event_jPanel9MouseClicked
+
+    private void jPanel6MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jPanel6MouseClicked
+        holdInvoice();
+    }//GEN-LAST:event_jPanel6MouseClicked
+
+    private void jPanel7MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jPanel7MouseClicked
+        callHoldInvoice();
+    }//GEN-LAST:event_jPanel7MouseClicked
+
+    private void jPanel3MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jPanel3MouseClicked
+        saveInvoice();
+    }//GEN-LAST:event_jPanel3MouseClicked
+
+    private void jLabel18MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jLabel18MouseClicked
+        clearItemTextField();
+    }//GEN-LAST:event_jLabel18MouseClicked
+
+    private void chashKeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_chashKeyReleased
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            saveInvoice();
+        }
+    }//GEN-LAST:event_chashKeyReleased
+
+    private void chashKeyTyped(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_chashKeyTyped
+        if (!Character.isDigit(evt.getKeyChar()) && evt.getKeyChar() != '.') {
+            evt.consume();
+        }
+        if (chash.getText().isEmpty() && evt.getKeyChar() == '.') {
+            evt.consume();
+        }
+        if (chash.getText().contains(".") && evt.getKeyChar() == '.') {
+            evt.consume();
+        }
+    }//GEN-LAST:event_chashKeyTyped
+
+
+    // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JLabel addNewItemLabel;
+    private javax.swing.JLabel cancelInvoiceLabel;
+    private javax.swing.JLabel change;
+    private javax.swing.JTextField chash;
+    private javax.swing.JTextField discount;
+    private javax.swing.JLabel doneLabel;
+    private javax.swing.JLabel holdLabel;
+    private javax.swing.JLabel invoiceDate;
+    private javax.swing.JLabel invoiceNo;
+    private javax.swing.JTable invoiceTable;
+    private javax.swing.JTextField itemDiscount;
+    private javax.swing.JTextField itemTotal;
+    private javax.swing.JLabel jLabel10;
+    private javax.swing.JLabel jLabel11;
+    private javax.swing.JLabel jLabel12;
+    private javax.swing.JLabel jLabel13;
+    private javax.swing.JLabel jLabel14;
+    private javax.swing.JLabel jLabel15;
+    private javax.swing.JLabel jLabel16;
+    private javax.swing.JLabel jLabel17;
+    private javax.swing.JLabel jLabel18;
+    private javax.swing.JLabel jLabel19;
+    private javax.swing.JLabel jLabel2;
+    private javax.swing.JLabel jLabel20;
+    private javax.swing.JLabel jLabel21;
+    private javax.swing.JLabel jLabel3;
+    private javax.swing.JLabel jLabel4;
+    private javax.swing.JLabel jLabel5;
+    private javax.swing.JLabel jLabel6;
+    private javax.swing.JLabel jLabel7;
+    private javax.swing.JLabel jLabel8;
+    private javax.swing.JLabel jLabel9;
+    private javax.swing.JPanel jPanel1;
+    private javax.swing.JPanel jPanel2;
+    private javax.swing.JPanel jPanel3;
+    private javax.swing.JPanel jPanel4;
+    private javax.swing.JPanel jPanel5;
+    private javax.swing.JPanel jPanel6;
+    private javax.swing.JPanel jPanel7;
+    private javax.swing.JPanel jPanel8;
+    private javax.swing.JPanel jPanel9;
+    private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JSeparator jSeparator1;
+    private javax.swing.JLabel netTotal;
+    private javax.swing.JTextField pecentage;
+    private javax.swing.JComboBox<String> productLoadCombo;
+    private javax.swing.JTextField productSearchTxt;
+    private javax.swing.JTextField qty;
+    private javax.swing.JLabel recallHoldLabel;
+    private javax.swing.JTextField sellingPrice;
+    private javax.swing.JLabel subTotal;
+    private javax.swing.JLabel subTotal1;
+    private javax.swing.JLabel subTotal2;
+    // End of variables declaration//GEN-END:variables
+
+    private void generateInvoiceId() {
+        try {
+            int count = InvoiceManager.getLastInvoiceId();
+            String idInvoice = String.valueOf(count + 1);
+            String id = "00000000";
+            int id_length = idInvoice.length();
+            id = id.substring(id_length);
+            id = id.concat(idInvoice);
+            invoiceNo.setText(id);
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+    }
+
+    private void clearItemTextField() {
+        productLoadCombo.removeAllItems();
+        productSearchTxt.setText(null);
+        sellingPrice.setText(null);
+        qty.setText(null);
+        itemDiscount.setText(null);
+        itemTotal.setText(null);
+        productSearchTxt.grabFocus();
+    }
+
+    private void deleteSelectedRow() {
+        int selectRow = invoiceTable.getSelectedRow();
+
+        if (selectRow != -1) {
+            DefaultTableModel dtm = (DefaultTableModel) invoiceTable.getModel();
+
+            double selectedSubTotal = (double) dtm.getValueAt(selectRow, 4);
+
+            subTotalSum -= selectedSubTotal;
+
+            subTotal.setText("රු " + subTotalSum);
+            netTotal.setText("අවසන් එකතුව= රු" + subTotalSum);
+            dtm.removeRow(selectRow);
+        }
+    }
+
+    private void cancelInvoice() {
+        clearItemTextField();
+
+        DefaultTableModel dtm = (DefaultTableModel) invoiceTable.getModel();
+        dtm.setRowCount(0);
+
+        chash.setText(null);
+        subTotal.setText("රු 0.00");
+        change.setText("රු 0.00");
+        discount.setText(null);
+        pecentage.setText(null);
+        netTotal.setText("අවසන් එකතුව= රු0.00");
+
+        itemTotalSum = 0.0;
+        subTotalSum = 0.0;
+        netTotalSum = 0.0;
+    }
+
+    private void saveInvoice() {
+
+        if (!chash.getText().isEmpty()) {
+            if (Double.parseDouble(chash.getText()) >= Double.parseDouble(netTotal.getText().split("අවසන් එකතුව= රු")[1])) {
+                if (subTotalSum != 0.0) {
+
+                    Databases.Beans.Invoice invoiceObj = new Databases.Beans.Invoice()
+                            .setSubTotal(Double.parseDouble(subTotal.getText().split("රු ")[1]))
+                            .setNetTotal(Double.parseDouble(netTotal.getText().split("අවසන් එකතුව= රු")[1].trim()))
+                            .setUserId(Main.userId);
+
+                    ArrayList<InvoiceItem> invoiceItemList = new ArrayList<InvoiceItem>();
+
+                    DefaultTableModel dtm = (DefaultTableModel) invoiceTable.getModel();
+
+                    for (int j = 0; j < dtm.getRowCount(); j++) {
+                        InvoiceItem invoiceItem = new InvoiceItem();
+
+                        String productTxt = (String) dtm.getValueAt(j, 0);
+
+                        invoiceItem.setProductName(productTxt.split("-")[0].trim());
+                        invoiceItem.setProductWight(productTxt.split("-")[1].trim());
+                        invoiceItem.setSellingPrice((double) dtm.getValueAt(j, 1));
+                        invoiceItem.setQty((double) dtm.getValueAt(j, 2));
+                        invoiceItem.setItemDiscount((double) dtm.getValueAt(j, 3));
+
+                        invoiceItemList.add(invoiceItem);
+                    }
+
+                    invoiceObj.setInvoiceItemList(invoiceItemList);
+
+                    if (InvoiceManager.addInvoice(invoiceObj)) {
+                        change.setText("රු " + String.valueOf(Double.parseDouble(chash.getText()) - invoiceObj.getNetTotal()));
+                        System.out.println("Yes");
+                        if (JOptionPane.showConfirmDialog(null, PRINTORNOT, "WARNING",
+                                JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+                            printInvoice();
+                            System.out.println("Print");
+                        } else {
+                            System.out.println("Not Print");
+                        }
+                        generateInvoiceId();
+                        cancelInvoice();
+                    } else {
+                        System.out.println("No");
+                        JOptionPane.showMessageDialog(this, TRYAGAINERROR, "වැරදි", JOptionPane.ERROR_MESSAGE);
+                        cancelInvoice();
+                    }
+
+                } else {
+                    JOptionPane.showMessageDialog(this, SELECTPRODUCTITEMERROR, "වැරදි", JOptionPane.ERROR_MESSAGE);
+                    productSearchTxt.grabFocus();
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, WRONGCHASHERROR, "වැරදි", JOptionPane.ERROR_MESSAGE);
+                chash.grabFocus();
+            }
+        }
+    }
+
+    private void printInvoice() {
+        try {
+            HashMap<String, Object> m = new HashMap();
+            String i = String.valueOf(Integer.parseInt(invoiceNo.getText()));
+            System.out.println(i);
+            m.put("invId", i);
+            m.put("chash", chash.getText());
+            m.put("change", change.getText().split("රු")[1].trim());
+            InputStream is = Invoice.class.getResourceAsStream("/Reports/MyRetail_Invoice.jrxml");
+            JasperReport report = JasperCompileManager.compileReport(is);
+
+            JasperPrint print1 = JasperFillManager.fillReport(report, m, DB.getConnection());
+            JasperViewer.viewReport(print1, false);
+            JasperPrintManager.printReport(print1, true);
+
+        } catch (Exception ex) {
+           ex.printStackTrace();
+        }
+    }
+
+    private void clickPlus() {
+        if (subTotalSum != 0.0) {
+            discount.grabFocus();
+        }
+    }
+
+    private void clickMinus() {
+        subTotal.setText("රු " + subTotalSum);
+        netTotal.setText("අවසන් එකතුව= රු" + subTotalSum);
+        discount.setText(null);
+        pecentage.setText(null);
+        productSearchTxt.grabFocus();
+    }
+
+    private void holdInvoice() {
+        if (subTotalSum != 0.0) {
+
+            HoldInvoice holdInvoiceObj = new HoldInvoice()
+                    .setSubTotal(Double.parseDouble(subTotal.getText().split("රු ")[1]))
+                    .setNetTotal(Double.parseDouble(netTotal.getText().split("අවසන් එකතුව= රු")[1]));
+            if (!discount.getText().isEmpty()) {
+                holdInvoiceObj.setDiscount(Double.parseDouble(discount.getText()));
+            }
+            if (!pecentage.getText().isEmpty()) {
+                holdInvoiceObj.setPercentage(Double.parseDouble(pecentage.getText()));
+            }
+
+            ArrayList<InvoiceItem> invoiceItemList = new ArrayList<InvoiceItem>();
+
+            DefaultTableModel dtm = (DefaultTableModel) invoiceTable.getModel();
+
+            for (int j = 0; j < dtm.getRowCount(); j++) {
+                InvoiceItem invoiceItem = new InvoiceItem();
+
+                invoiceItem.setProductName((String) dtm.getValueAt(j, 0));
+                invoiceItem.setSellingPrice((double) dtm.getValueAt(j, 1));
+                invoiceItem.setQty((double) dtm.getValueAt(j, 2));
+                invoiceItem.setItemDiscount((double) dtm.getValueAt(j, 3));
+                invoiceItem.setItemTotal((double) dtm.getValueAt(j, 4));
+
+                invoiceItemList.add(invoiceItem);
+            }
+
+            holdInvoiceObj.setInvoiceItemList(invoiceItemList);
+
+            if (HoldInvoiceManager.writeFile(holdInvoiceObj)) {
+                JOptionPane.showMessageDialog(this, SAVEDHOLDINVOICEMSG);
+                cancelInvoice();
+            } else {
+                JOptionPane.showMessageDialog(this, ALREADYHAVEHOLDINVOICEERROR, "වැරදි", JOptionPane.ERROR_MESSAGE);
+            }
+
+        } else {
+            JOptionPane.showMessageDialog(this, SELECTPRODUCTITEMERROR, "වැරදි", JOptionPane.ERROR_MESSAGE);
+            productSearchTxt.grabFocus();
+        }
+
+    }
+
+    private void callHoldInvoice() {
+
+        try {
+            HoldInvoice holdInvoiceObj = HoldInvoiceManager.readFile();
+
+            if (holdInvoiceObj != null) {
+
+                DefaultTableModel dtm = (DefaultTableModel) invoiceTable.getModel();
+
+                dtm.setRowCount(0);
+
+                for (InvoiceItem invoiceItem : holdInvoiceObj.getInvoiceItemList()) {
+
+                    Vector v = new Vector();
+
+                    v.add(invoiceItem.getProductName());
+                    v.add(invoiceItem.getSellingPrice());
+                    v.add(invoiceItem.getQty());
+                    v.add(invoiceItem.getItemDiscount());
+                    v.add(invoiceItem.getItemTotal());
+
+                    dtm.addRow(v);
+                }
+
+                subTotalSum = holdInvoiceObj.getSubTotal();
+                netTotalSum = holdInvoiceObj.getNetTotal();
+
+                netTotal.setText("අවසන් එකතුව= රු" + netTotalSum);
+                subTotal.setText("රු " + subTotalSum);
+
+                discount.setText(String.valueOf(holdInvoiceObj.getDiscount()));
+                pecentage.setText(String.valueOf(holdInvoiceObj.getPercentage()));
+            } else {
+                JOptionPane.showMessageDialog(this, NOHOLDINVOICEERROR, "වැරදි", JOptionPane.ERROR_MESSAGE);
+
+            }
+        } catch (ClassNotFoundException ex) {
+            System.out.println(ex);
+        }
+    }
+
+    @Override
+    public void nativeKeyTyped(NativeKeyEvent nke) {
+        //          switch (nke.getKeyCode()){
+//            case KeyEvent.VK_ENTER: 
+//                
+//          }
+        if (nke.getKeyChar() == '+') {
+
+            clickPlus();
+        }
+
+        if (nke.getKeyChar() == '-') {
+
+            clickMinus();
+        }
+        System.out.println(nke.getKeyCode() + "A");
+
+        if (nke.getKeyChar() == KeyEvent.VK_BACK_SPACE) {
+
+            deleteSelectedRow();
+        }
+    }
+
+    @Override
+    public void nativeKeyPressed(NativeKeyEvent nke) {
+
+    }
+
+    @Override
+    public void nativeKeyReleased(NativeKeyEvent nke) {
+
+    }
+
+}
